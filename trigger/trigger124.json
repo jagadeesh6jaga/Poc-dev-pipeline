@@ -1,0 +1,35 @@
+{
+	"name": "trigger124",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "waitpipeline",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Month",
+				"interval": 1,
+				"startTime": "2023-01-21T10:28:00Z",
+				"timeZone": "UTC",
+				"schedule": {
+					"minutes": [
+						6
+					],
+					"hours": [
+						1
+					],
+					"monthDays": [
+						20
+					]
+				}
+			}
+		}
+	}
+}

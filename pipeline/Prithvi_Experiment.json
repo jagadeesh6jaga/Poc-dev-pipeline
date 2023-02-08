@@ -1,0 +1,247 @@
+{
+	"name": "Prithvi_Experiment",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get Metadata1",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "Excel_ds",
+						"type": "DatasetReference",
+						"parameters": {
+							"container_name": {
+								"value": "@pipeline().parameters.container_name",
+								"type": "Expression"
+							},
+							"filename": {
+								"value": "@pipeline().parameters.file_name",
+								"type": "Expression"
+							},
+							"sheet_name": {
+								"value": "@pipeline().parameters.file_sheet_name",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"columnCount",
+						"contentMD5",
+						"itemType",
+						"structure",
+						"itemName"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					}
+				}
+			},
+			{
+				"name": "excel_sheet_Data",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Get Metadata1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "ExcelSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"maxConcurrentConnections": 0,
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						}
+					},
+					"dataset": {
+						"referenceName": "Excel1_schema",
+						"type": "DatasetReference",
+						"parameters": {
+							"filename": {
+								"value": "@pipeline().parameters.schema_file_name",
+								"type": "Expression"
+							},
+							"container_name": {
+								"value": "@pipeline().parameters.container_name",
+								"type": "Expression"
+							},
+							"sheet_name": {
+								"value": "@pipeline().parameters.schema_sheet_name",
+								"type": "Expression"
+							}
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Copy from excel to database",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "get_columns and their types",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "ExcelSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"modifiedDatetimeStart": "2023-02-01T00:00:00.000Z",
+							"enablePartitionDiscovery": false
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": {
+							"value": "@{concat('IF not EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ''',split(activity('Get Metadata1').output.itemName,'.')[0], ''' ) BEGIN create table ' , split(activity('Get Metadata1').output.itemName,'.')[0] , ' ( ', join(variables('array_of_columns'), ',') ,' )  END ')}",
+							"type": "Expression"
+						},
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "Excel_ds",
+						"type": "DatasetReference",
+						"parameters": {
+							"container_name": {
+								"value": "@pipeline().parameters.container_name",
+								"type": "Expression"
+							},
+							"filename": {
+								"value": "@pipeline().parameters.file_name",
+								"type": "Expression"
+							},
+							"sheet_name": {
+								"value": "@pipeline().parameters.file_sheet_name",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "AzureSqlTable1",
+						"type": "DatasetReference",
+						"parameters": {
+							"tablename": {
+								"value": "@split(activity('Get Metadata1').output.itemName,'.')[0] ",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "get_columns and their types",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "excel_sheet_Data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('excel_sheet_Data').output.value",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "append_variables into array",
+							"type": "AppendVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "array_of_columns",
+								"value": {
+									"value": "@concat(item()['Prop_0'] ,' ', item()['Prop_1'],' ')",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"container_name": {
+				"type": "string",
+				"defaultValue": "input"
+			},
+			"file_name": {
+				"type": "string",
+				"defaultValue": "employee2.xlsx"
+			},
+			"schema_file_name": {
+				"type": "string",
+				"defaultValue": "employee2.xlsx"
+			},
+			"file_sheet_name": {
+				"type": "string",
+				"defaultValue": "Sheet1"
+			},
+			"schema_sheet_name": {
+				"type": "string",
+				"defaultValue": "Sheet3"
+			}
+		},
+		"variables": {
+			"array_of_columns": {
+				"type": "Array"
+			}
+		},
+		"annotations": []
+	}
+}
