@@ -127,14 +127,15 @@
 						}
 					},
 					"sink": {
-						"type": "AzureSqlSink",
-						"preCopyScript": {
-							"value": "@{concat('IF not EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ''',split(activity('Get Metadata1').output.itemName,'.')[0], ''' ) BEGIN create table ' , split(activity('Get Metadata1').output.itemName,'.')[0] , ' ( ', join(variables('array_of_columns'), ',') ,' )  END ')}",
-							"type": "Expression"
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
 						},
-						"writeBehavior": "insert",
-						"sqlWriterUseTableLock": false,
-						"disableMetricsCollection": false
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
 					},
 					"enableStaging": false,
 					"translator": {
@@ -168,14 +169,8 @@
 				],
 				"outputs": [
 					{
-						"referenceName": "AzureSqlTable1",
-						"type": "DatasetReference",
-						"parameters": {
-							"tablename": {
-								"value": "@split(activity('Get Metadata1').output.itemName,'.')[0] ",
-								"type": "Expression"
-							}
-						}
+						"referenceName": "DelimitedText1",
+						"type": "DatasetReference"
 					}
 				]
 			},
